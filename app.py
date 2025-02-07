@@ -50,7 +50,7 @@ def latepoint_webhook():
             return jsonify({"error": "Não foi possível extrair o número do slot"}), 400
         
         # Acessar o site do TheFork e preencher a reserva
-        restaurante_url = "https://www.thefork.com/restaurant/example-restaurant"
+        restaurante_url = "https://www.thefork.pt/restaurante/ristorante-toscano-r739878"
         driver.get(restaurante_url)
         time.sleep(3)
         
