@@ -21,46 +21,39 @@ def latepoint_webhook():
     data = request.json
     
     if not data:
-        return jsonify({"error": "Dados inválidos"}), 400
-
-    # Extrai o link para gerenciar a reserva
-    manage_booking_url = data.get("manage_booking_for_agent")
-    if not manage_booking_url:
-        return jsonify({"error": "URL de gerenciamento de reserva não encontrada"}), 400
-    
-    driver = iniciar_navegador()
-    driver.get(manage_booking_url)
-    time.sleep(3)  # Espera o site carregar
+        return jsonify({"error": "Dados inválidos ou JSON não recebido"}), 400
 
     try:
-        # Extrair número do slot disponível (ex: "6 de 34 Slots")
+        # Extrair dados do webhook
+        manage_booking_url = data.get("manage_booking_for_agent")
+        customer = data.get("customer", {})
+        cliente = customer.get("full_name")
+        email = customer.get("email")
+        telefone = customer.get("phone")
+        start_date = data.get("start_date")
+        start_time = data.get("start_time")
+        
+        if not (manage_booking_url and cliente and email and telefone and start_date and start_time):
+            return jsonify({"error": "Dados incompletos recebidos do webhook"}), 400
+        
+        driver = iniciar_navegador()
+        driver.get(manage_booking_url)
+        time.sleep(3)
+        
+        # Extrair número do slot disponível
         slot_text = driver.find_element(By.XPATH, "//div[contains(text(), 'Slots')]").text
         slot_number = re.search(r"(\d+) de", slot_text)
         if slot_number:
             slot_number = slot_number.group(1)
         else:
-            raise ValueError("Não foi possível extrair o número do slot")
-    except Exception as e:
-        driver.quit()
-        return jsonify({"error": f"Erro ao obter número do slot: {e}"}), 400
-
-    # Extrair informações do cliente
-    customer = data.get("customer", {})
-    cliente = customer.get("full_name")
-    email = customer.get("email")
-    telefone = customer.get("phone")
-    start_date = data.get("start_date")  # Data da reserva
-    start_time = data.get("start_time")  # Hora da reserva
-    
-    if not (cliente and email and telefone and slot_number and start_date and start_time):
-        driver.quit()
-        return jsonify({"error": "Faltam dados para a reserva"}), 400
-    
-    restaurante_url = "https://www.thefork.com/restaurant/example-restaurant"
-    driver.get(restaurante_url)
-    time.sleep(3)  # Espera o site carregar
-
-    try:
+            driver.quit()
+            return jsonify({"error": "Não foi possível extrair o número do slot"}), 400
+        
+        # Acessar o site do TheFork e preencher a reserva
+        restaurante_url = "https://www.thefork.com/restaurant/example-restaurant"
+        driver.get(restaurante_url)
+        time.sleep(3)
+        
         # Preencher a data da reserva
         data_input = driver.find_element(By.ID, "date-picker-input")
         data_input.clear()
@@ -94,9 +87,10 @@ def latepoint_webhook():
         
         driver.quit()
         return jsonify({"message": "Reserva feita com sucesso!", "slot": slot_number})
+    
     except Exception as e:
         driver.quit()
-        return jsonify({"error": f"Erro ao processar reserva: {e}"}), 400
+        return jsonify({"error": f"Erro inesperado: {e}"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
